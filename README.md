@@ -1,4 +1,4 @@
-# **The Dum Dum Operating System | DDOS** <img width="1011" height="145" alt="image" src="[https://github.com/user-attachments/assets/placeholder-id]()" />
+# **The Dum Dum Operating System | DDOS** 
 
 ### **Copyright © Bocca Gigante Production 2022, 2026** #### The Dum Dum Operating System, or **DDOS**, is a lightweight project designed to breathe new life into those dusty i386 home computers from the early 2000s. While most modern OSs have abandoned "legacy" hardware, DumDumOS embraces it, aiming to bring modern perks like Wi-Fi to ancient silicon.
 
