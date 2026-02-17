@@ -48,5 +48,3 @@ git clone https://github.com/picconeyt/Dum-Dum-Operating-System.git
 ```
 
 ---
-
-**Would you like me to draft a "Technical Specifications" section detailing how the 16-bit Unreal Mode handles your memory addressing?**
