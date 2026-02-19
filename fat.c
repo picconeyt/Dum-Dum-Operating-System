@@ -1,4 +1,5 @@
-// fat.c - DAC (Dum Allocation "Chair") filesystem implementation
+// fat.c - DAC (Dum Allocation "Chair") filesystem implementation (This does NOT work)
+// I just hope i can get FAT working and hopefully also a version of EXT, maybe if i get the smorts EXT-4?
 #include <stdint.h>
 #include <stdbool.h>
 
