@@ -18,10 +18,11 @@ start:
     mov ss, ax
     mov sp, 0xFFFF
 
-    ; Set video mode (Clear Screen)
+    ; Set video mode (Clear Screen) - default big mode
     mov ah, 0x00
     mov al, 0x03
     int 0x10
+    mov byte [gui_mode], 0          ; 0 = big (80x25)
     
     mov si, welcome
     call print
@@ -96,6 +97,13 @@ main_loop:
     call str_eq
     cmp al, 1
     je do_touch
+
+    ; Check "changegui" (Toggle screen size)
+    mov si, input_buffer
+    mov di, changegui_cmd
+    call str_eq
+    cmp al, 1
+    je do_changegui
 
     ; If no command matched
     mov si, unknown_msg
@@ -191,6 +199,31 @@ do_echo:
     jmp .echo_print_nq_loop
 .echo_done:
     call newline
+    jmp main_loop
+
+do_changegui:
+    ; Toggle between big (80x25) and small (80x50) text modes
+    cmp byte [gui_mode], 0
+    je .set_small
+    ; Set big mode (80x25)
+    mov ah, 0x00
+    mov al, 0x03
+    int 0x10
+    mov byte [gui_mode], 0
+    mov si, big_msg
+    call print
+    jmp main_loop
+.set_small:
+    ; Set small mode (80x50) via 8x8 font
+    mov ah, 0x00
+    mov al, 0x03        ; Start with 80x25 mode
+    int 0x10
+    mov ax, 0x1112      ; Load 8x8 font (switches to 80x50)
+    mov bl, 0           ; Font block 0
+    int 0x10
+    mov byte [gui_mode], 1
+    mov si, small_msg
+    call print
     jmp main_loop
 
 ; --- Disk I/O Functions for C to call ---
@@ -521,7 +554,7 @@ newline:
     ret
 
 ; --- Data Area ---
-welcome db "DDOS Terminal Active", 13, 10, 0
+welcome db "Welcome to DDOS!", 13, 10, 0
 prompt_msg db "[#] ", 0
 test_cmd db "test", 0
 info_cmd db "info", 0
@@ -532,14 +565,38 @@ help_cmd db "help", 0
 echo_cmd db "echo", 0
 ls_cmd db "ls", 0
 touch_cmd db "touch", 0
-info_msg db "DDOS: Dum Dum Operating System, (C) Bocca Gigante Productions", 13, 10, 0
+changegui_cmd db "changegui", 0   ; New command replacing screenfix
+info_msg db "DDOS: Dum Dum Operating System, (C) Bocca Gigante Productions", 13, 10
+    db "", 13, 10
+    db "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@+:=@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@*:-%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@++:-+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@#=::-+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@%+-::--*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@@@@@*=-:::-=%@@@@@@@@@@@@@@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@         #+=-:::--+@@+      +@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@:             -*+=-::----       #@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@                 .-++=-:-.       @@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@ %%%                  -+.    #+  @@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@ %%%    %%%:           **   %%%* @@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@       %%%%          %%%%      @@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@       %%%%%%%%+%%%%%%%      @@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@@      #%%%%%%%%%%%:     #@@@@@@@@@@@@", 13, 10
+    db "@@@@@@@@@@@@@@@@@@@@@.             ..@@@@@@@@@@@@@@@@", 13, 10
+    db "", 13, 10, 0
 unknown_msg db "Command unknown", 13, 10, 0
 shutdown_msg db "Shutting Down...", 13, 10, 0
 reboot_msg db "Rebooting...", 13, 10, 0
-help_msg db "Commands: info, clear, shutdown, reboot, help, test, ls, touch", 13, 10, 0
+help_msg db "Commands: info, clear, shutdown, reboot, help, test, ls, touch, changegui", 13, 10, 0  ; Updated
+big_msg db "Switched to big text mode (80x50)", 13, 10, 0
+small_msg db "Switched to small text mode (80x25)", 13, 10, 0
 input_buffer times 64 db 0
 ; Command history: 8 entries of 64 bytes
 history times 512 db 0
 history_count db 0
 history_head db 0
 history_pos db 0
+gui_mode db 0  ; 0 = big (80x25), 1 = small (80x50)
