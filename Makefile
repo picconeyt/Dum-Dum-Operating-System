@@ -39,9 +39,9 @@ $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 	@mkdir -p $(OUT)
 
-# Rule to link the kernel and C modules (no main32.o)
+# Rule to link the kernel and C modules
 $(KERNEL_BIN): $(KERNEL_ASM_OBJ) $(C_OBJECTS) | $(BIN_DIR)
-	@echo "Linking Kernel (16/32-bit) and C..."
+	@echo "Linking Kernel and C..."
 	$(LD) $(LD_FLAGS) $(KERNEL_ASM_OBJ) $(C_OBJECTS) -o $(KERNEL_BIN)
 
 # Rule for assembling the bootloader
@@ -49,7 +49,7 @@ $(BOOT_BIN): $(BOOT_DIR)/boot.asm | $(BIN_DIR)
 	@echo "Assembling bootloader..."
 	$(ASM) -f bin $(BOOT_DIR)/boot.asm -o $(BOOT_BIN)
 
-# Rule for assembling the kernel (now contains all 32-bit code)
+# Rule for assembling the kernel entry
 $(KERNEL_ASM_OBJ): $(KERNEL_DIR)/kernel.asm | $(BIN_DIR)
 	@echo "Assembling Kernel..."
 	$(ASM) -f elf32 $(KERNEL_DIR)/kernel.asm -o $(KERNEL_ASM_OBJ)
