@@ -35,7 +35,7 @@ main_loop:
     call move_prompt_left
     mov si, prompt_msg
     call print
-    call update_hw_cursor          ; sync hardware cursor after prompt
+    call set_bios_cursor              ; ensure cursor matches prompt
     call read_input
 
     ; --- Command Checks ---
@@ -123,6 +123,12 @@ main_loop:
     call str_eq
     cmp al, 1
     je do_togglecurs
+
+    mov si, input_buffer
+    mov di, ver_cmd
+    call str_eq
+    cmp al, 1
+    je do_ver
 
     ; If no command matched
     mov si, unknown_msg
@@ -429,11 +435,18 @@ do_togglecurs:
     je .off
     ; Cursor turned ON -> clear screen and show cursor
     call fill_screen_current_color
-    call enable_hw_cursor
-    call update_hw_cursor
+    call enable_cursor
     jmp main_loop
 .off:
-    call disable_hw_cursor
+    call disable_cursor
+    jmp main_loop
+
+; -------------------------------------------------------------------
+; ver – show version information
+do_ver:
+    mov si, ver_msg
+    call print
+    call newline
     jmp main_loop
 
 ; -------------------------------------------------------------------
@@ -488,7 +501,7 @@ fill_screen_current_color:
     mov al, ' '
     rep stosw
     mov word [cursor_pos], 0
-    call update_hw_cursor    ; <-- sync hardware cursor to top-left
+    call set_bios_cursor      ; sync hardware cursor to top-left
     pop ax
     pop cx
     pop di
@@ -496,64 +509,52 @@ fill_screen_current_color:
     ret
 
 ; -------------------------------------------------------------------
-; Hardware cursor control
+; BIOS cursor control (foolproof, no VGA register bugs)
 
-; Update VGA CRT cursor position from cursor_pos
-update_hw_cursor:
-    push ax
-    push dx
-    cmp byte [cursor_visible], 0
-    je .done              ; if cursor hidden, don't move it
+; Set BIOS cursor to match [cursor_pos]
+set_bios_cursor:
+    pusha
     mov ax, [cursor_pos]
-    shr ax, 1             ; char index = byte offset / 2
-    ; Cursor high byte
-    mov dx, 0x3D4
-    mov al, 0x0E
-    out dx, al
-    inc dx
-    mov al, ah
-    out dx, al
-    ; Cursor low byte
-    dec dx
-    mov al, 0x0F
-    out dx, al
-    inc dx
-    mov al, ah
-    out dx, al
-.done:
-    pop dx
-    pop ax
+    mov bl, 160
+    div bl                  ; AL = row, AH = column*2
+    shr ah, 1               ; AH = column
+    mov dh, al              ; row
+    mov dl, ah              ; column
+    mov ah, 0x02
+    mov bh, 0
+    int 0x10
+    popa
     ret
 
-; Enable cursor (standard shape)
-enable_hw_cursor:
+; Enable VGA cursor (separate from position)
+enable_cursor:
     push ax
     push dx
     mov dx, 0x3D4
     mov al, 0x0A
     out dx, al
     inc dx
-    mov al, 0x0E          ; cursor start = 14 (scanline)
+    mov al, 0x0E            ; start scanline 14
     out dx, al
     dec dx
     mov al, 0x0B
     out dx, al
     inc dx
-    mov al, 0x0F          ; cursor end = 15 (scanline)
+    mov al, 0x0F            ; end scanline 15
     out dx, al
     pop dx
     pop ax
     ret
 
-; Disable cursor (by setting bit 5 of cursor start)
-disable_hw_cursor:
+; Disable VGA cursor
+disable_cursor:
     push ax
     push dx
     mov dx, 0x3D4
     mov al, 0x0A
     out dx, al
     inc dx
-    mov al, 0x20          ; bit 5 = 1 -> cursor disabled
+    mov al, 0x20            ; bit 5 = disable
     out dx, al
     pop dx
     pop ax
@@ -620,7 +621,7 @@ write_sectors_bios:
     ret
 
 ; -------------------------------------------------------------------
-; Core Functions (direct VGA output with hardware cursor sync)
+; Core Functions (direct VGA output + BIOS cursor sync)
 
 print:
     lodsb
@@ -671,7 +672,7 @@ print_char:
     call scroll_screen
 
 .done_char:
-    call update_hw_cursor      ; <-- sync after every char/control code
+    call set_bios_cursor      ; keep hardware cursor in sync
     pop di
     pop es
     pop dx
@@ -716,8 +717,9 @@ move_prompt_left:
     mov ax, [cursor_pos]
     mov bl, 160
     div bl
-    mul bl
+    mul bl               ; AX = row * 160, column 0
     mov [cursor_pos], ax
+    call set_bios_cursor  ; update hardware cursor
     pop bx
     pop ax
     ret
@@ -760,7 +762,7 @@ read_input:
     cmp al, 0x08
     je .b
     stosb
-    call print_char          ; echo char (now updates cursor internally)
+    call print_char          ; echo char (updates cursor)
     jmp .r
 .b:
     cmp di, input_buffer
@@ -838,7 +840,7 @@ read_input:
     call print
     mov si, input_buffer
     call print
-    call update_hw_cursor
+    call set_bios_cursor
     ret
 .k_down:
     mov al, [history_pos]
@@ -866,7 +868,7 @@ read_input:
     call move_prompt_left
     mov si, prompt_msg
     call print
-    call update_hw_cursor
+    call set_bios_cursor
     ret
 
 str_eq:
@@ -948,6 +950,7 @@ bgcolor_cmd db "bgcolor", 0
 txtcolor_cmd db "txtcolor", 0
 resetpal_cmd db "resetpal", 0
 togglecurs_cmd db "togglecurs", 0
+ver_cmd db "ver", 0
 
 info_msg db "DDOS: Dum Dum Operating System, (C) Bocca Gigante Productions", 13, 10
     db "", 13, 10
@@ -974,7 +977,7 @@ unknown_msg db "Command unknown", 13, 10, 0
 shutdown_msg db "Shutting Down...", 13, 10, 0
 apm_fail_msg db "APM shutdown failed. Halting.", 13, 10, 0
 reboot_msg db "Rebooting...", 13, 10, 0
-help_msg db "Commands: info, clear, shutdown, reboot, help, test, echo, changegui, freeram, cpuid, bgcolor, txtcolor, resetpal, togglecurs", 13, 10, 0
+help_msg db "Commands: info, clear, shutdown, reboot, help, test, echo, changegui, freeram, cpuid, bgcolor, txtcolor, resetpal, togglecurs, ver", 13, 10, 0
 big_msg db "Switched to big text mode (80x50)", 13, 10, 0
 small_msg db "Switched to small text mode (80x25)", 13, 10, 0
 
@@ -988,6 +991,7 @@ unknown_brand_msg db "Unknown CPU brand", 0
 core_count_msg db "Cores: ", 0
 logical_procs_msg db "Logical processors: ", 0
 invalid_color_msg db "Invalid color. Use 0-9 or A-F.", 13, 10, 0
+ver_msg db "Dum Dum Operating System | Codename: Old Hawk | Build 053026-1 | (C) Bocca Gigante Production", 0
 
 ; Data buffers
 input_buffer times 64 db 0
