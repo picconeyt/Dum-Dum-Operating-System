@@ -13,13 +13,12 @@ fi
 git add .
 git commit -m "$commit_message"
 
-# 3. Pull first to prevent the 'rejected' error
-# --rebase keeps your history clean by putting your new commit on top of the remote ones
+# 3. Pull first to prevent the 'rejected' error, specifying the remote and branch
 echo "Checking for remote changes..."
-if git pull --rebase; then
-    # 4. Push only if the pull worked
+if git pull origin main --rebase; then
+    # 4. Push specifying the remote and branch
     echo "Pushing to remote..."
-    if git push; then
+    if git push origin main; then
         echo "✅ Successfully synced and pushed!"
     else
         echo "❌ Push failed. Check your credentials or internet connection."
