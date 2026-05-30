@@ -15,7 +15,7 @@ OUT = ./Output
 BIN_DIR = $(OUT)/binaries
 
 # Files
-C_SOURCES = $(C_DIR)/datest.c $(C_DIR)/fat.c
+C_SOURCES = $(C_DIR)/datest.c
 C_OBJECTS = $(patsubst $(C_DIR)/%.c,$(BIN_DIR)/%.o,$(C_SOURCES))
 KERNEL_ASM_OBJ = $(BIN_DIR)/kernel.o
 BOOT_BIN = $(BIN_DIR)/boot.bin
