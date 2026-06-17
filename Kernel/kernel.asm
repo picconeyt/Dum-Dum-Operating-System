@@ -147,6 +147,12 @@ main_loop:
     cmp al, 1
     je do_viewsector
 
+    mov si, input_buffer
+    mov di, ping_cmd
+    call str_prefix_eq
+    cmp al, 1
+    je do_ping
+
     ; If no command matched
     mov si, unknown_msg
     call print
@@ -589,6 +595,47 @@ do_viewsector:
     mov si, sector_read_err
     call print
     call newline
+    jmp main_loop
+
+; -------------------------------------------------------------------
+; ping – ICMP echo to IPv4 host or domain (RTL8139 / tcpip.asm)
+do_ping:
+    pusha
+    mov si, input_buffer
+    add si, 4                 ; skip "ping"
+    call skip_spaces
+    cmp byte [si], 0
+    je .usage
+
+    mov di, ping_arg_buffer
+.copy_arg:
+    mov al, [si]
+    mov [di], al
+    inc si
+    inc di
+    or al, al
+    jnz .copy_arg
+
+    cmp byte [network_initialized], 0
+    jne .skip_init
+    call net_init
+    cmp al, 0
+    je .init_fail
+    mov byte [network_initialized], 1
+.skip_init:
+    mov si, ping_arg_buffer
+    call ping_target
+    popa
+    jmp main_loop
+
+.usage:
+    mov si, ping_usage_msg
+    call print
+    popa
+    jmp main_loop
+
+.init_fail:
+    popa
     jmp main_loop
 
 ; -------------------------------------------------------------------
@@ -1393,6 +1440,10 @@ newline:
     ret
 
 ; -------------------------------------------------------------------
+; RTL8139 networking stack (ping, DNS, ARP, ICMP)
+%include "tcpip.asm"
+
+; -------------------------------------------------------------------
 ; GDT for Big Unreal Mode (16-bit code, 4 GiB limits)
 gdt_start:
     dq 0
@@ -1436,6 +1487,7 @@ togglecurs_cmd db "togglecurs", 0
 ver_cmd db "ver", 0
 umode_cmd db "umode", 0
 viewsector_cmd db "viewsector", 0
+ping_cmd db "ping", 0
 
 info_msg db "DDOS: Dum Dum Operating System, (C) Bocca Gigante Productions", 13, 10
     db "", 13, 10
@@ -1462,7 +1514,7 @@ unknown_msg db "Command unknown", 13, 10, 0
 shutdown_msg db "Shutting Down...", 13, 10, 0
 apm_fail_msg db "APM shutdown failed. Halting.", 13, 10, 0
 reboot_msg db "Rebooting...", 13, 10, 0
-help_msg db "Commands: info, clear, shutdown, reboot, help, test, echo, changegui, freeram, cpuid, bgcolor, txtcolor, resetpal, togglecurs, ver, umode, viewsector", 13, 10, 0
+help_msg db "Commands: info, clear, shutdown, reboot, help, test, echo, changegui, freeram, cpuid, bgcolor, txtcolor, resetpal, togglecurs, ver, umode, viewsector, ping", 13, 10, 0
 big_msg db "Switched to big text mode (80x50)", 13, 10, 0
 small_msg db "Switched to small text mode (80x25)", 13, 10, 0
 conventional_msg db "Conventional memory: ", 0
@@ -1496,6 +1548,8 @@ cursor_visible db 1
 boot_drive db 0
 cpu_name_buffer times 48 db 0
 unreal_mode_active db 0
+network_initialized db 0
+ping_arg_buffer times 64 db 0
 
 ; Disk geometry (for 1.44 MB floppy, change as needed)
 SectorsPerTrack dw 18

@@ -32,7 +32,7 @@ CYLINDERS = $(shell echo $$(($(IMAGE_SIZE_SECTORS) / ($(SECTORS_PER_TRACK) * $(H
 # Default target
 all: $(IMAGE)
 	@echo "Done! Running QEMU..."
-	qemu-system-x86_64 -fda $(IMAGE)
+	qemu-system-x86_64 -fda $(IMAGE) -net nic,model=rtl8139 -net user
 
 # Ensure output directories exist
 $(IMAGE): $(BOOT_BIN) $(KERNEL_BIN) | $(BIN_DIR)
@@ -74,7 +74,7 @@ $(BOOT_BIN): $(BOOT_DIR)/boot.asm | $(BIN_DIR)
 # Rule for assembling the kernel entry
 $(KERNEL_ASM_OBJ): $(KERNEL_DIR)/kernel.asm | $(BIN_DIR)
 	@echo "Assembling Kernel..."
-	$(ASM) -f elf32 $(KERNEL_DIR)/kernel.asm -o $(KERNEL_ASM_OBJ)
+	$(ASM) -f elf32 -I$(KERNEL_DIR) $(KERNEL_DIR)/kernel.asm -o $(KERNEL_ASM_OBJ)
 
 # Pattern rule for compiling C files
 $(BIN_DIR)/%.o: $(C_DIR)/%.c | $(BIN_DIR)

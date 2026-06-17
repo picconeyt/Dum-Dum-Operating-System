@@ -49,10 +49,10 @@ start:
     mov dx, 0x8480
     int 0x15
 
-    ; --- ORIGINAL LOAD KERNEL (DO NOT CHANGE) ---
+    ; --- LOAD KERNEL (must cover full linked kernel.bin size) ---
     mov byte [retry_count], 3
 .load_retry:
-    mov ax, 0x0214      ; Read 20 sectors (0x14)
+    mov ax, 0x0240      ; Read 64 sectors (32 KiB) from sector 2
     mov cx, 0x0002      ; Sector 2
     mov dx, [boot_drive]
     mov bx, 0x7E00
